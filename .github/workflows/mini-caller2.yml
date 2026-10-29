@@ -1,0 +1,6 @@
+name: mini-caller2
+on:
+  workflow_dispatch:
+jobs:
+  call:
+    uses: ./.github/workflows/mini-callee2.yml
