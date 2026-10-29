@@ -1,0 +1,8 @@
+name: test-direct
+on:
+  workflow_dispatch:
+jobs:
+  call:
+    uses: ./.github/workflows/coverage-reusable.yml
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
