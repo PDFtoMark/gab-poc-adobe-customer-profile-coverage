@@ -14,10 +14,10 @@ jobs:
     concurrency:
       group: dependabot-coverage-${{ github.repository }}-${{ github.event.issue.number }}
       cancel-in-progress: true
-    permissions:
-      actions: read
-      contents: read
-      pull-requests: write
+    # NOTE: the real reusable workflow declares
+    #   permissions: { actions: read, contents: read, pull-requests: write }
+    # The PDFtoMark org disables write workflow permissions (409 Conflict), so the
+    # block is omitted here; it has no bearing on the artifact -> action overwrite RCE.
     steps:
       - name: Get PR head SHA
         id: pr
