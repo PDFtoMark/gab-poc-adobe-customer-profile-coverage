@@ -1,0 +1,11 @@
+name: pr-only-probe
+on:
+  pull_request:
+    types: [opened, synchronize]
+permissions:
+  contents: read
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "workflow file from the PR merge ref executed"
